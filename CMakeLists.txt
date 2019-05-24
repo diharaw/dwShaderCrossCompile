@@ -8,11 +8,15 @@ add_subdirectory(external/SPIRV-Cross)
 # Headers
 set(DWSCC_HEADERS "${PROJECT_SOURCE_DIR}/external/glslang/StandAlone/ResourceLimits.h"
                   "${PROJECT_SOURCE_DIR}/external/glslang/StandAlone/DirStackFileIncluder.h"
-                  "${PROJECT_SOURCE_DIR}/external/glslang/StandAlone/Worklist.h")
+                  "${PROJECT_SOURCE_DIR}/external/glslang/StandAlone/Worklist.h"
+                  "${PROJECT_SOURCE_DIR}/src/spirv_compiler.h"
+                  "${PROJECT_SOURCE_DIR}/src/cross_compiler.h")
 
 # Sources
 set(DWSCC_SOURCES "${PROJECT_SOURCE_DIR}/external/glslang/StandAlone/ResourceLimits.cpp"
-                  "${PROJECT_SOURCE_DIR}/src/main.cpp")
+                  "${PROJECT_SOURCE_DIR}/src/main.cpp"
+                  "${PROJECT_SOURCE_DIR}/src/spirv_compiler.cpp"
+                  "${PROJECT_SOURCE_DIR}/src/cross_compiler.cpp")
 
 # Source groups
 source_group("Headers" FILES ${DWSCC_HEADERS})
