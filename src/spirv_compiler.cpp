@@ -248,36 +248,7 @@ namespace spirv_compiler
             ++count;
         }
     };
-    
-    const char* GetBinaryName(EShLanguage stage)
-    {
-        const char* name;
-        if (binaryFileName == nullptr) {
-            switch (stage) {
-                case EShLangVertex:          name = "vert.spv";    break;
-                case EShLangTessControl:     name = "tesc.spv";    break;
-                case EShLangTessEvaluation:  name = "tese.spv";    break;
-                case EShLangGeometry:        name = "geom.spv";    break;
-                case EShLangFragment:        name = "frag.spv";    break;
-                case EShLangCompute:         name = "comp.spv";    break;
-#ifdef NV_EXTENSIONS
-                case EShLangRayGenNV:        name = "rgen.spv";    break;
-                case EShLangIntersectNV:     name = "rint.spv";    break;
-                case EShLangAnyHitNV:        name = "rahit.spv";   break;
-                case EShLangClosestHitNV:    name = "rchit.spv";   break;
-                case EShLangMissNV:          name = "rmiss.spv";   break;
-                case EShLangCallableNV:      name = "rcall.spv";   break;
-                case EShLangMeshNV:          name = "mesh.spv";    break;
-                case EShLangTaskNV:          name = "task.spv";    break;
-#endif
-                default:                     name = "unknown";     break;
-            }
-        } else
-            name = binaryFileName;
-        
-        return name;
-    }
-    
+
     //
     // For linking mode: Will independently parse each compilation unit, but then put them
     // in the same program and link them together, making at most one linked module per
@@ -419,8 +390,10 @@ namespace spirv_compiler
         if (CompileFailed || LinkFailed)
             printf("SPIR-V is not generated for failed compile or link\n");
         else {
-            for (int stage = 0; stage < EShLangCount; ++stage) {
-                if (program.getIntermediate((EShLanguage)stage)) {
+            for (int stage = 0; stage < EShLangCount; ++stage)
+            {
+                if (program.getIntermediate((EShLanguage)stage))
+                {
                     std::string warningsErrors;
                     spv::SpvBuildLogger logger;
                     glslang::SpvOptions spvOptions;
@@ -434,18 +407,6 @@ namespace spirv_compiler
                     spvOptions.validate = SpvToolsValidate;
                     
                     glslang::GlslangToSpv(*program.getIntermediate((EShLanguage)stage), spirv, &logger, &spvOptions);
-                    
-                    if (! (Options & EOptionMemoryLeakMode)) {
-                        printf("%s", logger.getAllMessages().c_str());
-                        if (Options & EOptionOutputHexadecimal) {
-                            glslang::OutputSpvHex(spirv, GetBinaryName((EShLanguage)stage), variableName);
-                        } else {
-                            glslang::OutputSpvBin(spirv, GetBinaryName((EShLanguage)stage));
-                        }
-                        if (!SpvToolsDisassembler && (Options & EOptionHumanReadableSpv))
-                            spv::Disassemble(std::cout, spirv);
-                    }
-                    // @TODO: use SPIR-V to cross complie
                 }
             }
         }
