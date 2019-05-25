@@ -88,7 +88,7 @@ public:
     void usage()
     {
         for (auto& it : option_map)
-            std::cout << it.first << "\t" << it.second << std::endl;
+            std::cout << "  --" << it.first << "=<value>\t\t" << it.second << std::endl;
     }
     
 private:
@@ -104,6 +104,10 @@ std::string path_without_file(std::string filepath)
     std::replace(filepath.begin(), filepath.end(), '\\', '/');
 #endif
     std::size_t found = filepath.find_last_of("/\\");
+    
+    if (found == std::string::npos)
+        return "";
+    
     std::string path  = filepath.substr(0, found);
     return path;
 }
@@ -128,7 +132,7 @@ int main(int argc, char* argv[])
     ArgumentParser parser;
     
     parser.add_option("shader-stage", "The shader stage corresponding to the input shader source (vertex, fragment or compute).");
-    parser.add_option("target-language", "Target shading language that the input shader source must be cross-compiled into.");
+    parser.add_option("target-language", "Target shading language that the input shader source must be cross-compiled into (GLSL_ES2, GLSL_ES3, GLSL_450, GLSL_VK, HLSL or MSL).");
 
     if (argc > 1)
     {
@@ -144,6 +148,8 @@ int main(int argc, char* argv[])
         if (output_path == "")
             output_path = path_without_file(input_path);
         
+        std::string file_name = file_name_from_path(input_path);
+  
         std::unordered_map<std::string, spirv_compiler::ShaderStage> shader_stage_map =
         {
             { "vertex", spirv_compiler::SHADER_STAGE_VERTEX },
@@ -176,7 +182,7 @@ int main(int argc, char* argv[])
         
         if (shader_stage_map.find(shader_stage) == shader_stage_map.end())
         {
-            printf("Shader stage not specified!");
+            printf("ERROR: Shader stage not specified!\n");
             return 1;
         }
         else
@@ -184,7 +190,7 @@ int main(int argc, char* argv[])
         
         if (target_lang_map.find(target_lang) == target_lang_map.end())
         {
-            printf("Target language not specified!");
+            printf("ERROR: Target language not specified!\n");
             return 1;
         }
         else
@@ -196,12 +202,19 @@ int main(int argc, char* argv[])
             
             if (cross_compiler::compile(spirv, lang, output_src))
             {
-//                std::size_t slash = filepath.find_last_of("/");
-//
-//                std::size_t dot      = filepath.find_last_of(".");
-//                std::string path_without_ext = filepath.substr(0, dot);
+                std::string write_path = output_path;
                 
-                std::ofstream out("test.metal");
+                if (write_path == "")
+                    write_path = write_path + file_name;
+                else
+                {
+                    write_path = write_path + "/";
+                    write_path = write_path + file_name;
+                }
+                
+                write_path = write_path + shader_extensions[lang];
+                
+                std::ofstream out(write_path);
                 out << output_src;
                 out.close();
                 
