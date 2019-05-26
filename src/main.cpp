@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 class ArgumentParser
 {
@@ -26,7 +27,7 @@ public:
                 {
                     std::string name = arg.substr(2, arg.size() - 2);
                     
-                    if (option_map.find(name) != option_map.end())
+                    if (bool_arguments.find(name) != bool_arguments.end())
                         bool_arguments[name] = true;
                 }
                 else
@@ -34,7 +35,7 @@ public:
                     std::string name = arg.substr(2, equal_sign - 2);
                     std::string value = arg.substr(equal_sign + 1, arg.size() - equal_sign + 1);
     
-                    if (option_map.find(name) != option_map.end())
+                    if (arguments.find(name) != arguments.end())
                         arguments[name] = value;
                 }
             }
@@ -43,27 +44,21 @@ public:
         }
     }
     
-    void add_option(std::string name, std::string description)
+    void add_option(std::string name)
     {
-        if (option_map.find(name) == option_map.end())
-        {
-            option_map[name] = description;
+        if (arguments.find(name) == arguments.end())
             arguments[name] = "";
-        }
     }
     
-    void add_bool_option(std::string name, std::string description)
+    void add_bool_option(std::string name)
     {
-        if (option_map.find(name) == option_map.end())
-        {
-            option_map[name] = description;
+        if (bool_arguments.find(name) == bool_arguments.end())
             bool_arguments[name] = false;
-        }
     }
     
     std::string argument(std::string name)
     {
-        if (option_map.find(name) == option_map.end())
+        if (arguments.find(name) == arguments.end())
             return "";
         
         return arguments[name];
@@ -71,7 +66,7 @@ public:
     
     bool bool_argument(std::string name)
     {
-        if (option_map.find(name) == option_map.end())
+        if (bool_arguments.find(name) == bool_arguments.end())
             return "";
         
         return bool_arguments[name];
@@ -85,14 +80,7 @@ public:
         return ordered_arguments[idx];
     }
     
-    void usage()
-    {
-        for (auto& it : option_map)
-            std::cout << "  --" << it.first << "=<value>\t\t" << it.second << std::endl;
-    }
-    
 private:
-    std::unordered_map<std::string, std::string> option_map;
     std::unordered_map<std::string, std::string> arguments;
     std::unordered_map<std::string, bool> bool_arguments;
     std::vector<std::string> ordered_arguments;
@@ -127,12 +115,28 @@ std::string file_name_from_path(std::string filepath)
     return filename;
 }
 
+void print_usage()
+{
+    printf("Usage: dwShaderCrossCompiler [option]... [input] [output_path]\n"
+           "\n"
+           "'input' is the GLSL shader source to be cross-compiled.\n"
+           "'output_path' is the output path of the cross-compiled output.\n"
+           "\n"
+           "Options:\n"
+           "  --shader-stage=<stage>          The shader stage corresponding to the input shader\n"
+           "                                  source (vertex, fragment or compute).\n"
+           "  --target-language=<language>    Target shading language that the input shader source\n"
+           "                                  must be cross-compiled into (GLSL_ES2, GLSL_ES3, GLSL_450,\n"
+           "                                  GLSL_VK, HLSL or MSL).\n"
+           );
+}
+
 int main(int argc, char* argv[])
 {
     ArgumentParser parser;
     
-    parser.add_option("shader-stage", "The shader stage corresponding to the input shader source (vertex, fragment or compute).");
-    parser.add_option("target-language", "Target shading language that the input shader source must be cross-compiled into (GLSL_ES2, GLSL_ES3, GLSL_450, GLSL_VK, HLSL or MSL).");
+    parser.add_option("shader-stage");
+    parser.add_option("target-language");
 
     if (argc > 1)
     {
@@ -196,7 +200,7 @@ int main(int argc, char* argv[])
         else
             lang = target_lang_map[target_lang];
 
-        if (spirv_compiler::compile(input_path, spirv))
+        if (spirv_compiler::compile(input_path, stage, spirv))
         {
             std::string output_src;
             
@@ -225,7 +229,7 @@ int main(int argc, char* argv[])
         }
     }
     else
-        parser.usage();
+        print_usage();
     
     return 1;
 }

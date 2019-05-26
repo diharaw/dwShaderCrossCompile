@@ -27,6 +27,13 @@
 
 namespace spirv_compiler
 {
+    EShLanguage kShaderStageMap[] =
+    {
+        EShLangVertex,
+        EShLangFragment,
+        EShLangCompute
+    };
+    
     extern "C" {
         SH_IMPORT_EXPORT void ShOutputHtml();
     }
@@ -87,7 +94,6 @@ namespace spirv_compiler
     //
     // Forward declarations.
     //
-    EShLanguage FindLanguage(const std::string& name, bool parseSuffix=true);
     void CompileFile(const char* fileName, ShHandle);
     char* ReadFileData(const char* fileName);
     void FreeFileData(char* data);
@@ -432,9 +438,9 @@ namespace spirv_compiler
     // performance and memory testing, the actual compile/link can be put in
     // a loop, independent of processing the work items and file IO.
     //
-    bool CompileAndLinkShaderFiles(std::string path, std::vector<unsigned int>& spirv)
+    bool CompileAndLinkShaderFiles(std::string path, ShaderStage stage, std::vector<unsigned int>& spirv)
     {
-        ShaderCompUnit compUnit(FindLanguage(path));
+        ShaderCompUnit compUnit(kShaderStageMap[stage]);
         char* fileText = ReadFileData(path.c_str());
         
         if (fileText == nullptr)
@@ -452,88 +458,6 @@ namespace spirv_compiler
         FreeFileData(const_cast<char*>(compUnit.text[0]));
         
         return true;
-    }
-
-    //
-    //   Deduce the language from the filename.  Files must end in one of the
-    //   following extensions:
-    //
-    //   .vert = vertex
-    //   .tesc = tessellation control
-    //   .tese = tessellation evaluation
-    //   .geom = geometry
-    //   .frag = fragment
-    //   .comp = compute
-    //   .rgen = ray generation
-    //   .rint = ray intersection
-    //   .rahit = ray any hit
-    //   .rchit = ray closest hit
-    //   .rmiss = ray miss
-    //   .rcall = ray callable
-    //   .mesh  = mesh
-    //   .task  = task
-    //   Additionally, the file names may end in .<stage>.glsl and .<stage>.hlsl
-    //   where <stage> is one of the stages listed above.
-    //
-    EShLanguage FindLanguage(const std::string& name, bool parseStageName)
-    {
-        std::string stageName;
-        if (shaderStageName)
-            stageName = shaderStageName;
-        else if (parseStageName) {
-            // Note: "first" extension means "first from the end", i.e.
-            // if the file is named foo.vert.glsl, then "glsl" is first,
-            // "vert" is second.
-            size_t firstExtStart = name.find_last_of(".");
-            bool hasFirstExt = firstExtStart != std::string::npos;
-            size_t secondExtStart = hasFirstExt ? name.find_last_of(".", firstExtStart - 1) : std::string::npos;
-            bool hasSecondExt = secondExtStart != std::string::npos;
-            std::string firstExt = name.substr(firstExtStart + 1, std::string::npos);
-            bool usesUnifiedExt = hasFirstExt && (firstExt == "glsl" || firstExt == "hlsl");
-            if (usesUnifiedExt && firstExt == "hlsl")
-                Options |= EOptionReadHlsl;
-            if (hasFirstExt && !usesUnifiedExt)
-                stageName = firstExt;
-            else if (usesUnifiedExt && hasSecondExt)
-                stageName = name.substr(secondExtStart + 1, firstExtStart - secondExtStart - 1);
-            else {
-                return EShLangVertex;
-            }
-        } else
-            stageName = name;
-        
-        if (stageName == "vert")
-            return EShLangVertex;
-        else if (stageName == "tesc")
-            return EShLangTessControl;
-        else if (stageName == "tese")
-            return EShLangTessEvaluation;
-        else if (stageName == "geom")
-            return EShLangGeometry;
-        else if (stageName == "frag")
-            return EShLangFragment;
-        else if (stageName == "comp")
-            return EShLangCompute;
-#ifdef NV_EXTENSIONS
-        else if (stageName == "rgen")
-            return EShLangRayGenNV;
-        else if (stageName == "rint")
-            return EShLangIntersectNV;
-        else if (stageName == "rahit")
-            return EShLangAnyHitNV;
-        else if (stageName == "rchit")
-            return EShLangClosestHitNV;
-        else if (stageName == "rmiss")
-            return EShLangMissNV;
-        else if (stageName == "rcall")
-            return EShLangCallableNV;
-        else if (stageName == "mesh")
-            return EShLangMeshNV;
-        else if (stageName == "task")
-            return EShLangTaskNV;
-#endif
-        
-        return EShLangVertex;
     }
     
 #if !defined _MSC_VER && !defined MINGW_HAS_SECURE_API
@@ -598,7 +522,7 @@ namespace spirv_compiler
         free(data);
     }
 
-    bool compile(const std::string& src, std::vector<unsigned int>& spirv)
+    bool compile(const std::string& src, ShaderStage stage, std::vector<unsigned int>& spirv)
     {
         Resources = glslang::DefaultTBuiltInResource;
         
@@ -635,7 +559,7 @@ namespace spirv_compiler
         }
         
         glslang::InitializeProcess();
-        CompileAndLinkShaderFiles(src, spirv);
+        CompileAndLinkShaderFiles(src, stage, spirv);
         glslang::FinalizeProcess();
         
         if (CompileFailed)

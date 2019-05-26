@@ -12,5 +12,5 @@ namespace spirv_compiler
         SHADER_STAGE_COMPUTE
     };
     
-    extern bool compile(const std::string& path, std::vector<unsigned int>& spirv);
+    extern bool compile(const std::string& path, ShaderStage stage, std::vector<unsigned int>& spirv);
 }
