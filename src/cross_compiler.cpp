@@ -44,6 +44,42 @@ namespace cross_compiler
         0
     };
     
+    void fix_matrix_force_colmajor(spirv_cross::Compiler& compiler)
+    {
+        /* go though all uniform block matrixes and decorate them with
+         column-major, this is needed in the HLSL backend to fix the
+         multiplication order
+         */
+        spirv_cross::ShaderResources res = compiler.get_shader_resources();
+        
+        for (const spirv_cross::Resource& ub_res: res.uniform_buffers)
+        {
+            const spirv_cross::SPIRType& ub_type = compiler.get_type(ub_res.base_type_id);
+            
+            for (int m_index = 0; m_index < (int)ub_type.member_types.size(); m_index++)
+            {
+                const spirv_cross::SPIRType& m_type = compiler.get_type(ub_type.member_types[m_index]);
+                
+                if ((m_type.basetype == spirv_cross::SPIRType::Float) && (m_type.vecsize > 1) && (m_type.columns > 1))
+                    compiler.set_member_decoration(ub_res.base_type_id, m_index, spv::DecorationColMajor);
+            }
+        }
+        
+        for (const spirv_cross::Resource& ssbo_res: res.storage_buffers)
+        {
+            const spirv_cross::SPIRType& ssbo_type = compiler.get_type(ssbo_res.base_type_id);
+            
+            for (int m_index = 0; m_index < (int)ssbo_type.member_types.size(); m_index++)
+            {
+                const spirv_cross::SPIRType& m_type = compiler.get_type(ssbo_type.member_types[m_index]);
+                
+                if ((m_type.basetype == spirv_cross::SPIRType::Float) && (m_type.vecsize > 1) && (m_type.columns > 1))
+                    compiler.set_member_decoration(ssbo_res.base_type_id, m_index, spv::DecorationColMajor);
+            }
+        }
+    }
+
+    
     bool compile(const std::vector<unsigned int>& spirv, ShadingLanguage output_lang, std::string& output_src)
     {
         if (spirv.size() == 0)
@@ -185,6 +221,9 @@ namespace cross_compiler
         {
             spirv_cross::CompilerHLSL hlsl(std::move(spirv));
             
+            spirv_cross::CompilerGLSL::Options common_options;
+            hlsl.set_common_options(common_options);
+            
             spirv_cross::CompilerHLSL::Options options;
             options.shader_model = 50;
             
@@ -198,6 +237,8 @@ namespace cross_compiler
                 baseType[0] = std::tolower(baseType[0]);
                 hlsl.set_name(ubo.id, baseType);
             }
+            
+            fix_matrix_force_colmajor(hlsl);
             
             output_src = hlsl.compile();
         }
