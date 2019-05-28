@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/packagist/l/doctrine/orm.svg)](https://opensource.org/licenses/MIT)
 
-# dwShaderCrossCompile
+# dwShaderCrossCompiler
 Shader cross compiler that takes in GLSL as input and outputs HLSL, GLSL (Vulkan, ES2, ES3, Desktop) and Metal.
 
 ## Dependencies
