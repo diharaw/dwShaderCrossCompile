@@ -4,44 +4,57 @@
 #include <spirv_hlsl.hpp>
 #include <spirv_msl.hpp>
 
+#include <locale>
 #include <iostream>
 
 namespace cross_compiler
 {
     const char* g_TypeTableStr[] = {
-        "Unknown",
-        "Void",
-        "Boolean",
-        "Char",
-        "Int",
-        "UInt",
-        "Int64",
-        "UInt64",
-        "AtomicCounter",
-        "Float",
-        "Double",
-        "Struct",
-        "Image",
-        "SampledImage",
-        "Sampler"
+		"Unknown",
+		"Void",
+		"Boolean",
+		"SByte",
+		"UByte",
+		"Short",
+		"UShort",
+		"Int",
+		"UInt",
+		"Int64",
+		"UInt64",
+		"AtomicCounter",
+		"Half",
+		"Float",
+		"Double",
+		"Struct",
+		"Image",
+		"SampledImage",
+		"Sampler",
+		"AccelerationStructureNV",
+		"ControlPointArray",
+		"Char"
     };
     
     size_t g_TypeTableSize[] = {
         0,
-        0,
-        1,
-        1,
-        4,
-        4,
-        8,
-        8,
-        0,
-        4,
-        8,
-        0,
-        0,
-        0,
-        0
+		0,
+		1,
+		1,
+		1,
+		4,
+		4,
+		8,
+		8,
+		0,
+		2,
+		4,
+		8,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		1
     };
     
     void fix_matrix_force_colmajor(spirv_cross::Compiler& compiler)
@@ -125,7 +138,8 @@ namespace cross_compiler
                 
                 std::string name = baseType.substr(2, baseType.size() - 2);
                 
-                name[0] = std::tolower(name[0]);
+				std::locale loc;
+                name[0] = std::tolower(name[0], loc);
                 
                 glsl.set_name(ubo.id, name);
             }
@@ -154,7 +168,8 @@ namespace cross_compiler
             for(auto& ubo : resources.uniform_buffers)
             {
                 std::string baseType = glsl.get_name(ubo.base_type_id);
-                baseType[0] = std::tolower(baseType[0]);
+				std::locale loc;
+                baseType[0] = std::tolower(baseType[0], loc);
                 glsl.set_name(ubo.id, baseType);
             }
             
@@ -182,7 +197,8 @@ namespace cross_compiler
             for(auto& ubo : resources.uniform_buffers)
             {
                 std::string baseType = glsl.get_name(ubo.base_type_id);
-                baseType[0] = std::tolower(baseType[0]);
+				std::locale loc;
+                baseType[0] = std::tolower(baseType[0], loc);
                 glsl.set_name(ubo.id, baseType);
             }
             
@@ -211,7 +227,8 @@ namespace cross_compiler
             for(auto& ubo : resources.uniform_buffers)
             {
                 std::string baseType = glsl.get_name(ubo.base_type_id);
-                baseType[0] = std::tolower(baseType[0]);
+				std::locale loc;
+                baseType[0] = std::tolower(baseType[0], loc);
                 glsl.set_name(ubo.id, baseType);
             }
             
@@ -234,7 +251,8 @@ namespace cross_compiler
             for(auto& ubo : resources.uniform_buffers)
             {
                 std::string baseType = hlsl.get_name(ubo.base_type_id);
-                baseType[0] = std::tolower(baseType[0]);
+				std::locale loc;
+                baseType[0] = std::tolower(baseType[0], loc);
                 hlsl.set_name(ubo.id, baseType);
             }
             
@@ -255,7 +273,8 @@ namespace cross_compiler
             for(auto& ubo : resources.uniform_buffers)
             {
                 std::string baseType = msl.get_name(ubo.base_type_id);
-                baseType[0] = std::tolower(baseType[0]);
+				std::locale loc;
+                baseType[0] = std::tolower(baseType[0], loc);
                 msl.set_name(ubo.id, baseType);
             }
             
@@ -264,4 +283,155 @@ namespace cross_compiler
         
         return true;
     }
+
+	bool compare_descriptors(Descriptor d1, Descriptor d2)
+	{
+		return d1.binding < d2.binding;
+	}
+
+	bool generate_reflection_data(const std::vector<unsigned int>& spirv, ShadingLanguage output_lang, ReflectionData& reflection_data)
+	{
+		const std::string kDescriptorTypes[] =
+		{
+			"DESCRIPTOR_TYPE_UBO",
+			"DESCRIPTOR_TYPE_SSBO",
+			"DESCRIPTOR_TYPE_SAMPLER",
+			"DESCRIPTOR_TYPE_TEXTURE",
+			"DESCRIPTOR_TYPE_IMAGE",
+			"DESCRIPTOR_TYPE_PUSH_CONSTANT"
+		};
+
+		if (output_lang == SHADING_LANGUAGE_GLSL_VK)
+		{
+			spirv_cross::CompilerGLSL glsl(std::move(spirv));
+
+			spirv_cross::CompilerGLSL::Options options;
+			options.version = 450;
+			options.es = false;
+			options.vulkan_semantics = true;
+			options.enable_420pack_extension = true;
+			glsl.set_common_options(options);
+
+			spirv_cross::ShaderResources resources = glsl.get_shader_resources();
+
+			for (const spirv_cross::Resource &resource : resources.separate_images)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				Descriptor desc;
+
+				desc.type = DESCRIPTOR_TYPE_TEXTURE;
+				desc.binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+				desc.name = resource.name;
+
+				reflection_data.descriptor_sets[set].push_back(desc);
+			}
+
+			for (const spirv_cross::Resource &resource : resources.separate_samplers)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				Descriptor desc;
+
+				desc.type = DESCRIPTOR_TYPE_SAMPLER;
+				desc.binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+				desc.name = resource.name;
+
+				reflection_data.descriptor_sets[set].push_back(desc);
+			}
+
+			for (const spirv_cross::Resource &resource : resources.uniform_buffers)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				Descriptor desc;
+
+				desc.type = DESCRIPTOR_TYPE_UBO;
+				desc.binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+				desc.name = resource.name;
+
+				reflection_data.descriptor_sets[set].push_back(desc);
+			}
+
+			for (const spirv_cross::Resource &resource : resources.storage_buffers)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				Descriptor desc;
+
+				desc.type = DESCRIPTOR_TYPE_SSBO;
+				desc.binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+				desc.name = resource.name;
+
+				reflection_data.descriptor_sets[set].push_back(desc);
+			}
+
+			for (const spirv_cross::Resource &resource : resources.storage_images)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				Descriptor desc;
+
+				desc.type = DESCRIPTOR_TYPE_IMAGE;
+				desc.binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+				desc.name = resource.name;
+
+				reflection_data.descriptor_sets[set].push_back(desc);
+			}
+
+			for (const spirv_cross::Resource &resource : resources.push_constant_buffers)
+			{
+				uint32_t set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+
+				std::string baseType = glsl.get_name(resource.base_type_id);
+				spirv_cross::SPIRType type = glsl.get_type(resource.base_type_id);
+
+				for (uint32_t i = 0; i < type.member_types.size(); i++)
+				{
+					spirv_cross::SPIRType memberType = glsl.get_type(type.member_types[i]);
+
+					PushConstantMembers desc;
+					
+					desc.name = glsl.get_member_name(resource.base_type_id, i);
+					desc.offset = glsl.type_struct_member_offset(type, i);
+					desc.type = g_TypeTableStr[memberType.basetype];
+					desc.array_size = memberType.array.size() > 0 ? memberType.array[0] : 1;
+
+					reflection_data.push_constant_members.push_back(desc);
+				}
+			}
+
+			std::cout << "Push Constant Members : " << std::endl;
+
+			for (auto& member : reflection_data.push_constant_members)
+			{
+				std::cout << "\tName = " << member.name << std::endl;
+				std::cout << "\tOffset = " << member.offset << std::endl;
+				std::cout << "\tType = " << member.type << std::endl;
+				std::cout << "\tArray Size = " << member.array_size << std::endl;
+			}
+
+			for (auto& set : reflection_data.descriptor_sets)
+			{
+				std::sort(set.second.begin(), set.second.end(), compare_descriptors);
+
+				std::cout << "Set = " << set.first << std::endl;
+				
+				for (auto& binding : set.second)
+				{
+					std::cout << "\tBinding = " << binding.binding << std::endl;
+					std::cout << "\tType = " << kDescriptorTypes[binding.type] << std::endl;
+					std::cout << "\tName = " << binding.name << std::endl;
+				}
+			}
+		}
+
+		return true;
+	}
 }

@@ -522,13 +522,23 @@ namespace spirv_compiler
         free(data);
     }
 
-    bool compile(const std::string& src, ShaderStage stage, std::vector<unsigned int>& spirv)
+    bool compile(const std::string& src, ShaderStage stage, std::vector<unsigned int>& spirv, bool vulkan_glsl)
     {
         Resources = glslang::DefaultTBuiltInResource;
+
+		if (vulkan_glsl)
+		{
+			ClientVersion = glslang::EShTargetVulkan_1_1;
+			Client = glslang::EShClientVulkan;
+		}
+		else
+		{
+			if (Client == glslang::EShClientNone)
+				ClientVersion = glslang::EShTargetOpenGL_450;
+			Client = glslang::EShClientOpenGL;
+		}
         
-        if (Client == glslang::EShClientNone)
-            ClientVersion = glslang::EShTargetOpenGL_450;
-        Client = glslang::EShClientOpenGL;
+
         Options |= EOptionSpv;
         Options |= EOptionLinkProgram;
         // undo a -H default to Vulkan

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 class ArgumentParser
 {
@@ -123,6 +124,7 @@ void print_usage()
            "'output_path' is the output path of the cross-compiled output.\n"
            "\n"
            "Options:\n"
+		   "  --vulkan-glsl					  Use this flag to indicate that the input is in Vulkan GLSL"
            "  --shader-stage=<stage>          The shader stage corresponding to the input shader\n"
            "                                  source (vertex, fragment or compute).\n"
            "  --target-language=<language>    Target shading language that the input shader source\n"
@@ -135,6 +137,7 @@ int main(int argc, char* argv[])
 {
     ArgumentParser parser;
     
+	parser.add_bool_option("vulkan-glsl");
     parser.add_option("shader-stage");
     parser.add_option("target-language");
 
@@ -148,6 +151,7 @@ int main(int argc, char* argv[])
         std::string output_path = parser.ordered_argument(1);
         std::string shader_stage = parser.argument("shader-stage");
         std::string target_lang = parser.argument("target-language");
+		bool is_vulkan_glsl = parser.bool_argument("vulkan-glsl");
         
         if (output_path == "")
             output_path = path_without_file(input_path);
@@ -200,10 +204,10 @@ int main(int argc, char* argv[])
         else
             lang = target_lang_map[target_lang];
 
-        if (spirv_compiler::compile(input_path, stage, spirv))
+        if (spirv_compiler::compile(input_path, stage, spirv, is_vulkan_glsl))
         {
             std::string output_src;
-            
+
             if (cross_compiler::compile(spirv, lang, output_src))
             {
                 std::string write_path = output_path;
