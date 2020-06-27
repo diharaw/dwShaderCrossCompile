@@ -302,14 +302,10 @@ namespace spirv_compiler
                  i != baseBindingForSet[res][compUnit.stage].end(); ++i)
                 shader->setShiftBindingForSet(res, i->second, i->first);
         }
-        
-        shader->setFlattenUniformArrays((Options & EOptionFlattenUniformArrays) != 0);
+
         shader->setNoStorageFormat((Options & EOptionNoStorageFormat) != 0);
         shader->setResourceSetBinding(baseResourceSetBinding[compUnit.stage]);
-        
-        if (Options & EOptionHlslIoMapping)
-            shader->setHlslIoMapping(true);
-        
+
         if (Options & EOptionAutoMapBindings)
             shader->setAutoMapBindings(true);
         
@@ -335,8 +331,6 @@ namespace spirv_compiler
                                 compUnit.stage, Client, ClientInputSemanticsVersion);
             shader->setEnvClient(Client, ClientVersion);
             shader->setEnvTarget(TargetLanguage, TargetVersion);
-            if (targetHlslFunctionality1)
-                shader->setEnvTargetHlslFunctionality1();
         }
         
         const int defaultVersion = Options & EOptionDefaultDesktop ? 110 : 100;
